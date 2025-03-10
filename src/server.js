@@ -68,7 +68,7 @@ wss.on('connection', (ws) => {
                     timestamp: momentJalaali().tz('Asia/Tehran').format('jYYYY/jM/jD HH:mm:ss')
                 };
 
-                if (conversationId.match(senderId) != null) {
+                if (conversationId.match(senderId) !== null) {
                     conversation.receiverId = receiverId;
                 }
                 const updatedMessages = [...conversation.messages, newMessage];
@@ -78,7 +78,7 @@ wss.on('connection', (ws) => {
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
                     const username = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && receiverId.includes(username)) {
+                    if (client.readyState === WebSocket.OPEN && receiverId.includes(username) || username===senderId) {
                         client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
                     }
                 });
