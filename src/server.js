@@ -34,45 +34,75 @@ sequelize.authenticate()
 // Set up routes
 setRoutes(app);
 
+const clients = new Map();
+
 wss.on('connection', (ws) => {
     console.log('a user connected');
+
     ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
-            const { conversationId, senderId, receiverId, content } = data;
+
+            if (data.type === 'register') {
+                // Register the user
+                const { username } = data;
+                clients.set(ws, username);
+                console.log(`User registered: ${username}`);
+                return;
+            }
+
+            const { conversationId, senderId, receiverId, content, id } = data;
 
             // Find the existing conversation or create a new one
             let conversation = await Message.findOne({ where: { conversationId } });
             if (!conversation) {
                 conversation = await Message.create({ conversationId, receiverId, messages: [] });
             }
-            // Append the new message to the existing messages
-            const newMessage = {
-                id: uuidv4(), // Generate a UUID for the new message
-                sender: senderId,
-                text: content,
-                timestamp: momentJalaali().tz('Asia/Tehran').format('jYYYY/jM/jD HH:mm:ss')
-            };
-            
-            if(conversationId.match(senderId) != null){
-                conversation.receiverId = receiverId
-            }
-            const updatedMessages = [...conversation.messages, newMessage];
-            conversation.messages = updatedMessages;
-            await conversation.save();
-            // Broadcast the new message to all connected clients
-            wss.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id:conversationId}));
+
+            if (data.type === 'message') {
+                // Append the new message to the existing messages
+                const newMessage = {
+                    id: uuidv4(), // Generate a UUID for the new message
+                    sender: senderId,
+                    text: content,
+                    timestamp: momentJalaali().tz('Asia/Tehran').format('jYYYY/jM/jD HH:mm:ss')
+                };
+
+                if (conversationId.match(senderId) != null) {
+                    conversation.receiverId = receiverId;
                 }
-            });
+                const updatedMessages = [...conversation.messages, newMessage];
+                conversation.messages = updatedMessages;
+                await conversation.save();
+
+                // Broadcast the new message to specific clients
+                wss.clients.forEach(client => {
+                    const username = clients.get(client);
+                    if (client.readyState === WebSocket.OPEN && receiverId.includes(username)) {
+                        client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
+                    }
+                });
+            } else if (data.type === 'delete') {
+                // Delete the message
+                conversation.messages = conversation.messages.filter(msg => msg.id !== id);
+                await conversation.save();
+
+                // Broadcast the updated messages to specific clients
+                wss.clients.forEach(client => {
+                    const username = clients.get(client);
+                    if (client.readyState === WebSocket.OPEN && receiverId.includes(username)) {
+                        client.send(JSON.stringify({ message: id, type:"delete" }));
+                    }
+                });
+            }
         } catch (error) {
-            console.error('Error creating message:', error);
+            console.error('Error processing message:', error);
         }
     });
 
     ws.on('close', () => {
         console.log('user disconnected');
+        clients.delete(ws);
     });
 });
 
