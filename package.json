@@ -1,0 +1,27 @@
+{
+  "name": "messaging-system",
+  "version": "1.0.0",
+  "description": "A messaging system for communication between users and support.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.21.2",
+    "moment-jalaali": "^0.10.4",
+    "moment-timezone": "^0.5.47",
+    "mongoose": "^5.13.23",
+    "mysql2": "^3.13.0",
+    "sequelize": "^6.37.6",
+    "socket.io": "^4.8.1",
+    "tunnel-ssh": "^5.2.0",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  },
+  "author": "Your Name",
+  "license": "ISC"
+}
