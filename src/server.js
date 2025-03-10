@@ -78,7 +78,7 @@ wss.on('connection', (ws) => {
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
                     const username = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && receiverId.includes(username) || username===senderId) {
+                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(username) || username===senderId)) {
                         client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
                     }
                 });
