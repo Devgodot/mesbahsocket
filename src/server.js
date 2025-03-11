@@ -35,11 +35,23 @@ sequelize.authenticate()
 // Set up routes
 setRoutes(app);
 
+// Endpoint to print all users
+app.get('/users', async (req, res) => {
+    try {
+        const users = await User.findAll();
+        console.log(users);
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 const clients = new Map();
 
 wss.on('connection', (ws) => {
     console.log('a user connected');
-    console.log(User.findAll())
+
     ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
@@ -90,7 +102,6 @@ wss.on('connection', (ws) => {
                 const allUsers = [...receiverId, senderId];
                 // Remove the message ID from seen_message of each receiver
                 for (const username of allUsers) {
-                    
                     let user = await User.findOne({ where: { username } });
                     if (user && user.data && user.data.seen_message) {
                         user.data.seen_message = user.data.seen_message.filter(msgId => msgId !== id);
