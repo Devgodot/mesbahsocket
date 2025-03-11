@@ -101,14 +101,17 @@ wss.on('connection', (ws) => {
                 conversation.messages = conversation.messages.filter(msg => msg.id !== id);
                 await conversation.save();
                 const allUsers = [...receiverId, senderId];
-                console.log(allUsers)
                 // Remove the message ID from seen_message of each receiver
                 for (const username of allUsers) {
-                    console.log(username)
                     let user = await User.findOne({ where: { username } });
                     if (user && user.data && user.data.seen_message) {
-                        console.log(user.data.seen_message)
-                        user.data.seen_message = user.data.seen_message.filter(msgId => msgId !== id);
+                        let seen_message = []
+                        for(const _id of user.data.seen_message){
+                            if (_id !== id){
+                            seen_message.push(_id);
+                            }
+                        }
+                        user.data.seen_message = seen_message;
                         await user.save();
                     }
                 }
