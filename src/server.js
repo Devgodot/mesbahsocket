@@ -84,7 +84,11 @@ wss.on('connection', (ws) => {
                 const { username, receiverId } = data;
                 clients.set(ws, { username, receiverId });
                 console.log(`User registered: ${username}`);
-                sendOnlineUsersCount(ws, username); // Send the online users count to the connected client
+                wss.clients.forEach(client => {
+                    const clientData = clients.get(client);
+                    sendOnlineUsersCount(ws, clientData.username);
+                });
+                // Send the online users count to the connected client
                 return;
             }
 
