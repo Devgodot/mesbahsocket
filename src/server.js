@@ -55,7 +55,7 @@ const sendOnlineUsersCount = async (ws, username) => {
         const id = username + "_" + String(x);
         
         let conversation = await Message.findOne({ where: { id }});
-    
+        console.log(conversation);
         if (conversation) {
             wss.clients.forEach(client => {
                 const clientData = clients.get(client);
