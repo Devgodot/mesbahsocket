@@ -39,7 +39,7 @@ const clients = new Map();
 
 wss.on('connection', (ws) => {
     console.log('a user connected');
-
+    console.log(User.findAll())
     ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
@@ -90,7 +90,7 @@ wss.on('connection', (ws) => {
                 const allUsers = [...receiverId, senderId];
                 // Remove the message ID from seen_message of each receiver
                 for (const username of allUsers) {
-                    console.log(User.findAll())
+                    
                     let user = await User.findOne({ where: { username } });
                     if (user && user.data && user.data.seen_message) {
                         user.data.seen_message = user.data.seen_message.filter(msgId => msgId !== id);
