@@ -111,7 +111,9 @@ wss.on('connection', (ws) => {
                             seen_message.push(_id);
                             }
                         }
-                        user.data.seen_message = seen_message;
+                        let data = user.data.filter(key => key !== "seen_message");
+                        data.seen_message = seen_message;
+                        user.data = data;
                         await user.save();
                     }
                 }
