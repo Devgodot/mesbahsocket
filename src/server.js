@@ -112,7 +112,9 @@ wss.on('connection', (ws) => {
                             }
                         }
                         let data = user.data.filter(key => key !== "seen_message");
+                        console.log(data)
                         data.seen_message = seen_message;
+                        console.log(data)
                         user.data = data;
                         await user.save();
                     }
