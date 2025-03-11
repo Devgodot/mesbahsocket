@@ -158,6 +158,15 @@ wss.on('connection', (ws) => {
             }
         });
     });
+
+    // Send ping messages to keep the connection alive
+    const interval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.ping();
+        } else {
+            clearInterval(interval);
+        }
+    }, 30000); // Send a ping every 30 seconds
 });
 
 server.listen(PORT, () => {
