@@ -52,9 +52,9 @@ const clients = new Map();
 const sendOnlineUsersCount = async (ws, username) => {
     let onlineSupporter = [[], [], []];
     for (let x = 0; x < 3; x++) {
-        const id = username + "_" + String(x);
+        const conversationId = username + "_" + String(x);
         
-        let conversation = await Message.findOne({ where: { id }});
+        let conversation = await Message.findOne({ where: { conversationId }});
         console.log(conversation);
         if (conversation) {
             wss.clients.forEach(client => {
