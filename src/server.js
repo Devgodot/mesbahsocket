@@ -49,6 +49,28 @@ app.get('/users', async (req, res) => {
 
 const clients = new Map();
 
+const sendOnlineUsersCount = async (ws, username) => {
+    let onlineSupporter = [[], [], []];
+    for (let x = 0; x < 3; x++) {
+        const id = username + "_" + String(x);
+        let conversation = await Message.findOne({ where: { id }});
+        if (conversation) {
+            wss.clients.forEach(client => {
+                const clientData = clients.get(client);
+                if (client.readyState === WebSocket.OPEN && (conversation.receiverId.includes(clientData.username) && clientData.username !== username)) {
+                    onlineSupporter[x].push(client);
+                }
+            });
+        }
+    }
+    let counts = [];
+    for(const client of onlineSupporter){
+        counts.push(client.length);
+    }
+
+    ws.send(JSON.stringify({ type: 'onlineUsers', count: counts }));
+};
+
 wss.on('connection', (ws) => {
     console.log('a user connected');
 
@@ -58,9 +80,10 @@ wss.on('connection', (ws) => {
 
             if (data.type === 'register') {
                 // Register the user
-                const { username } = data;
-                clients.set(ws, username);
+                const { username, receiverId } = data;
+                clients.set(ws, { username, receiverId });
                 console.log(`User registered: ${username}`);
+                sendOnlineUsersCount(ws, username); // Send the online users count to the connected client
                 return;
             }
 
@@ -90,8 +113,8 @@ wss.on('connection', (ws) => {
 
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
-                    const username = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(username) || username === senderId)) {
+                    const clientData = clients.get(client);
+                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.username) || clientData.username === senderId)) {
                         client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
                     }
                 });
@@ -112,8 +135,8 @@ wss.on('connection', (ws) => {
 
                 // Broadcast the updated messages to specific clients
                 wss.clients.forEach(client => {
-                    const username = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && receiverId.includes(username)) {
+                    const clientData = clients.get(client);
+                    if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
                         client.send(JSON.stringify({ message: id, type: "delete" }));
                     }
                 });
@@ -126,6 +149,13 @@ wss.on('connection', (ws) => {
     ws.on('close', () => {
         console.log('user disconnected');
         clients.delete(ws);
+        // Optionally, you can send the updated online users count to all clients
+        wss.clients.forEach(client => {
+            const clientData = clients.get(client);
+            if (client.readyState === WebSocket.OPEN) {
+                sendOnlineUsersCount(client, clientData.username);
+            }
+        });
     });
 });
 
