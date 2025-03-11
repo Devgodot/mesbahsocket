@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid'); // Import the uuid library
 const sequelize = require('./database');
 const Message = require('./models/message'); // Import the Message model
+const users = require('./models/user'); // Import the User model
 const MessagingService = require('./services/messagingService');
 const { setRoutes } = require('./routes/index');
 const moment = require('moment-timezone');
@@ -78,7 +79,7 @@ wss.on('connection', (ws) => {
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
                     const username = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(username) || username===senderId)) {
+                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(username) || username === senderId)) {
                         client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
                     }
                 });
@@ -86,12 +87,21 @@ wss.on('connection', (ws) => {
                 // Delete the message
                 conversation.messages = conversation.messages.filter(msg => msg.id !== id);
                 await conversation.save();
+                const allUsers = [...receiverId, senderId];
+                // Remove the message ID from seen_message of each receiver
+                for (const username of allUsers) {
+                    let user = await users.findOne({ where: { username } });
+                    if (user && user.data && user.data.seen_message) {
+                        user.data.seen_message = user.data.seen_message.filter(msgId => msgId !== id);
+                        await user.save();
+                    }
+                }
 
                 // Broadcast the updated messages to specific clients
                 wss.clients.forEach(client => {
                     const username = clients.get(client);
                     if (client.readyState === WebSocket.OPEN && receiverId.includes(username)) {
-                        client.send(JSON.stringify({ message: id, type:"delete" }));
+                        client.send(JSON.stringify({ message: id, type: "delete" }));
                     }
                 });
             }
