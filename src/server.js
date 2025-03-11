@@ -51,7 +51,14 @@ const clients = new Map();
 
 wss.on('connection', (ws) => {
     console.log('a user connected');
-
+    try {
+        const users = await User.findAll();
+        console.log(users);
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).send('Internal Server Error');
+    }
     ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
