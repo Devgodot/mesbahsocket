@@ -53,6 +53,7 @@ const sendOnlineUsersCount = async (ws, username) => {
     let onlineSupporter = [[], [], []];
     for (let x = 0; x < 3; x++) {
         const id = username + "_" + String(x);
+        console.log(id);
         let conversation = await Message.findOne({ where: { id }});
         if (conversation) {
             wss.clients.forEach(client => {
@@ -63,6 +64,7 @@ const sendOnlineUsersCount = async (ws, username) => {
             });
         }
     }
+    console.log(onlineSupporter);
     let counts = [];
     for(const client of onlineSupporter){
         counts.push(client.length);
