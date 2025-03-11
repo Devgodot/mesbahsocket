@@ -51,9 +51,8 @@ const clients = new Map();
 
 wss.on('connection', (ws) => {
     console.log('a user connected');
-    
+
     ws.on('message', async (message) => {
-        
         try {
             const data = JSON.parse(message);
 
@@ -105,18 +104,9 @@ wss.on('connection', (ws) => {
                 for (const username of allUsers) {
                     let user = await User.findOne({ where: { username } });
                     if (user && user.data && user.data.seen_message) {
-                        let seen_message = []
-                        for(const _id of user.data.seen_message){
-                            if (_id !== id){
-                            seen_message.push(_id);
-                            }
-                        }
-                        let data = user.data.filter(key => key !== "seen_message");
-                        console.log(data)
-                        data.seen_message = seen_message;
-                        console.log(data)
-                        user.data = data;
-                        await user.save();
+                        user.data.seen_message = user.data.seen_message.filter(key => key !== id);
+                        // Update the user data
+                        await User.update({ data: user.data }, { where: { username } });
                     }
                 }
 
