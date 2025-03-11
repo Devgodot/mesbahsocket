@@ -86,9 +86,10 @@ wss.on('connection', (ws) => {
                 console.log(`User registered: ${username}`);
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
-                    sendOnlineUsersCount(ws, clientData.username);
+                    if (client.readyState === WebSocket.OPEN) {
+                        sendOnlineUsersCount(client, clientData.username);
+                    }
                 });
-                // Send the online users count to the connected client
                 return;
             }
 
