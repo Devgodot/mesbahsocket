@@ -107,6 +107,7 @@ wss.on('connection', (ws) => {
                     console.log(username)
                     let user = await User.findOne({ where: { username } });
                     if (user && user.data && user.data.seen_message) {
+                        console.log(user.data.seen_message)
                         user.data.seen_message = user.data.seen_message.filter(msgId => msgId !== id);
                         await user.save();
                     }
