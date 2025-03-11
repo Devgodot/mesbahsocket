@@ -55,18 +55,15 @@ const sendOnlineUsersCount = async (ws, username) => {
         const conversationId = username + "_" + String(x);
         
         let conversation = await Message.findOne({ where: { conversationId }});
-        console.log(conversation);
         if (conversation) {
             wss.clients.forEach(client => {
                 const clientData = clients.get(client);
-                console.log(clientData.username);
                 if (client.readyState === WebSocket.OPEN && (conversation.receiverId.includes(clientData.username) && clientData.username !== username)) {
                     onlineSupporter[x].push(client);
                 }
             });
         }
     }
-    console.log(onlineSupporter);
     let counts = [];
     for(const client of onlineSupporter){
         counts.push(client.length);
