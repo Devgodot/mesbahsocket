@@ -131,7 +131,7 @@ wss.on('connection', (ws) => {
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
                     if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.username) || clientData.username === senderId)) {
-                        client.send(JSON.stringify({ message: content, receiverId: receiverId, id: conversationId }));
+                        client.send(JSON.stringify({sound: content, receiverId: receiverId }));
                     }
                 });
             } else if (data.type === 'delete') {
