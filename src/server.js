@@ -124,6 +124,16 @@ wss.on('connection', (ws) => {
                         client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
                     }
                 });
+            } 
+            else if (data.type === 'sound') {
+            
+                // Broadcast the new message to specific clients
+                wss.clients.forEach(client => {
+                    const clientData = clients.get(client);
+                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.username) || clientData.username === senderId)) {
+                        client.send(JSON.stringify({ message: content, receiverId: receiverId, id: conversationId }));
+                    }
+                });
             } else if (data.type === 'delete') {
                 // Delete the message
                 conversation.messages = conversation.messages.filter(msg => msg.id !== id);
