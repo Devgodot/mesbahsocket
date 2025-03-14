@@ -109,11 +109,18 @@ wss.on('connection', (ws) => {
                     text: content,
                     timestamp: momentJalaali().tz('Asia/Tehran').format('jYYYY/jM/jD HH:mm:ss')
                 };
-
+                
                 if (conversationId.match(senderId) !== null) {
                     conversation.receiverId = receiverId;
                 }
                 const updatedMessages = [...conversation.messages, newMessage];
+                
+                // Check if the number of messages exceeds 30
+                if (updatedMessages.length > 30) {
+                    // Remove the first message
+                    updatedMessages.shift();
+                }
+                
                 conversation.messages = updatedMessages;
                 await conversation.save();
 
