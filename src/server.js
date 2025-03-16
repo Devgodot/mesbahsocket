@@ -202,7 +202,7 @@ wss.on('connection', (ws) => {
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
-                            client.send(JSON.stringify({ message: id, type: "delete" }));
+                            client.send(JSON.stringify({ message: id, type: "delete", "last_time_messages":conversation.messages[conversation.messages.length - 1].timestamp, "conversationId":conversationId  }));
                         }
                     });
                 } catch (error) {
