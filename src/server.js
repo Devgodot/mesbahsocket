@@ -92,7 +92,6 @@ wss.on('connection', (ws) => {
                 });
                 return;
             }
-
             const { conversationId, senderId, receiverId, content, id } = data;
 
             // Find the existing conversation or create a new one
@@ -117,13 +116,28 @@ wss.on('connection', (ws) => {
                 
                 // Check if the number of messages exceeds 30
                 if (updatedMessages.length > 30) {
+                    const deletedMessageId = updatedMessages[0].id;
+                    console.log(deletedMessageId)
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
+                            console.log("delete")
+                            client.send(JSON.stringify({ message: deletedMessageId, type: "delete" }));
+                        }
+                    });
                     // Remove the first message
                     updatedMessages.shift();
+
+                    // Delete the message from the database
+                    await sequelize.models.UserSeenMessages.destroy({
+                        where: {
+                            messageId: deletedMessageId
+                        }
+                    });
                 }
                 
                 conversation.messages = updatedMessages;
                 await conversation.save();
-
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
@@ -142,27 +156,38 @@ wss.on('connection', (ws) => {
                     }
                 });
             } else if (data.type === 'delete') {
-                // Delete the message
-                conversation.messages = conversation.messages.filter(msg => msg.id !== id);
-                await conversation.save();
-                const allUsers = [...receiverId, senderId];
-                // Remove the message ID from seen_message of each receiver
-                for (const username of allUsers) {
-                    let user = await User.findOne({ where: { username } });
-                    if (user && user.data && user.data.seen_message) {
-                        user.data.seen_message = user.data.seen_message.filter(key => key !== id);
-                        // Update the user data
-                        await User.update({ data: user.data }, { where: { username } });
-                    }
-                }
+                const { conversationId, senderId, receiverId, content, id } = data;
+                const transaction = await sequelize.transaction(); // Start a transaction
+                try {
+                    // Delete the message
+                    conversation.messages = conversation.messages.filter(msg => msg.id !== id);
+                    await conversation.save({ transaction });
+                    
+                    
 
-                // Broadcast the updated messages to specific clients
-                wss.clients.forEach(client => {
-                    const clientData = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
-                        client.send(JSON.stringify({ message: id, type: "delete" }));
+                    const allUsers = [...receiverId, senderId];
+                    // Remove the message ID from seen_message of each receiver
+                    for (const username of allUsers) {
+                        let user = await User.findOne({ where: { username } });
+                        if (user && user.data && user.data.seen_message) {
+                            user.data.seen_message = user.data.seen_message.filter(key => key !== id);
+                            // Update the user data
+                            await User.update({ data: user.data }, { where: { username }, transaction });
+                        }
                     }
-                });
+
+                    await transaction.commit(); // Commit the transaction
+                    // Broadcast the updated messages to specific clients
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
+                            client.send(JSON.stringify({ message: id, type: "delete" }));
+                        }
+                    });
+                } catch (error) {
+                    await transaction.rollback(); // Rollback the transaction if any error occurs
+                    console.error('Error processing message deletion:', error);
+                }
             }
         } catch (error) {
             console.error('Error processing message:', error);
