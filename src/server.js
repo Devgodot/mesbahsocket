@@ -10,6 +10,29 @@ const { setRoutes } = require('./routes/index');
 const moment = require('moment-timezone');
 const momentJalaali = require('moment-jalaali');
 
+const { Sequelize } = require('sequelize');
+const config = require('../config/config.json');
+
+const env = process.env.NODE_ENV || 'development';
+const dbConfig = config[env];
+
+const sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, {
+  host: dbConfig.host,
+  dialect: dbConfig.dialect
+});
+
+const User = require('./models/user');
+const Message = require('./models/message');
+const UserSeenMessages = require('./models/UserSeenMessages');
+
+sequelize.models = {
+    User,
+    Message,
+    UserSeenMessages
+};
+
+module.exports = sequelize;
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -175,7 +198,11 @@ wss.on('connection', (ws) => {
                             await User.update({ data: user.data }, { where: { username }, transaction });
                         }
                     }
-
+                    await sequelize.models.UserSeenMessages.destroy({
+                        where: {
+                            messageId: id
+                        }
+                    });
                     await transaction.commit(); // Commit the transaction
                     // Broadcast the updated messages to specific clients
                     wss.clients.forEach(client => {
