@@ -17,8 +17,6 @@ const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
 
-const User = require('./models/user');
-const Message = require('./models/message');
 const UserSeenMessages = require('./models/UserSeenMessages');
 
 sequelize.models = {
@@ -136,17 +134,16 @@ wss.on('connection', (ws) => {
                 // Check if the number of messages exceeds 30
                 if (updatedMessages.length > 30) {
                     const deletedMessageId = updatedMessages[0].id;
-                    console.log(deletedMessageId)
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
-                            console.log("delete")
-                            client.send(JSON.stringify({ message: deletedMessageId, type: "delete" }));
+                            
+                            client.send(JSON.stringify({ message: deletedMessageId, type: "delete", "last_time_messages":newMessage.timestamp, "conversationId":conversationId }));
                         }
                     });
                     // Remove the first message
                     updatedMessages.shift();
-
+                    
                     // Delete the message from the database
                     await sequelize.models.UserSeenMessages.destroy({
                         where: {
@@ -157,6 +154,7 @@ wss.on('connection', (ws) => {
                 
                 conversation.messages = updatedMessages;
                 await conversation.save();
+
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
