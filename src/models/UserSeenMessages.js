@@ -2,11 +2,12 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../database');
 
 const UserSeenMessages = sequelize.define('UserSeenMessages', {
-    messageId: {
+    message_id: {
         type: DataTypes.STRING,
         allowNull: false
+        
     },
-    userId: {
+    user_id: {
         type: DataTypes.STRING,
         allowNull: false
     }

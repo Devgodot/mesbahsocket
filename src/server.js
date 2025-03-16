@@ -147,7 +147,7 @@ wss.on('connection', (ws) => {
                     // Delete the message from the database
                     await sequelize.models.UserSeenMessages.destroy({
                         where: {
-                            messageId: deletedMessageId
+                            message_id: deletedMessageId
                         }
                     });
                 }
@@ -194,7 +194,7 @@ wss.on('connection', (ws) => {
                     }
                     await sequelize.models.UserSeenMessages.destroy({
                         where: {
-                            messageId: id
+                            message_id: id
                         }
                     });
                     await transaction.commit(); // Commit the transaction
