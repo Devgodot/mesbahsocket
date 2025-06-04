@@ -104,7 +104,7 @@ wss.on('connection', (ws) => {
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
                     if (client.readyState === WebSocket.OPEN) {
-                        sendOnlineUsersCount(client, clientData.username);
+                        sendOnlineUsersCount(client, clientData.id);
                     }
                 });
                 return;
@@ -136,7 +136,7 @@ wss.on('connection', (ws) => {
                     const deletedMessageId = updatedMessages[0].id;
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
-                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
+                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.id)) {
                             
                             client.send(JSON.stringify({ message: deletedMessageId, type: "delete", "last_time_messages":newMessage.timestamp, "conversationId":conversationId }));
                         }
@@ -158,7 +158,7 @@ wss.on('connection', (ws) => {
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.username) || clientData.username === senderId)) {
+                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.id) || clientData.id === senderId)) {
                         client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
                     }
                 });
@@ -168,7 +168,7 @@ wss.on('connection', (ws) => {
                 // Broadcast the new message to specific clients
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.username) || clientData.username === senderId)) {
+                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.id) || clientData.id === senderId)) {
                         client.send(JSON.stringify({sound: content, receiverId: receiverId }));
                     }
                 });
@@ -201,7 +201,7 @@ wss.on('connection', (ws) => {
                     // Broadcast the updated messages to specific clients
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
-                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.username)) {
+                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.id)) {
                             client.send(JSON.stringify({ message: id, type: "delete", "last_time_messages":conversation.messages[conversation.messages.length - 1].timestamp, "conversationId":conversationId  }));
                         }
                     });
@@ -222,7 +222,7 @@ wss.on('connection', (ws) => {
         wss.clients.forEach(client => {
             const clientData = clients.get(client);
             if (client.readyState === WebSocket.OPEN) {
-                sendOnlineUsersCount(client, clientData.username);
+                sendOnlineUsersCount(client, clientData.id);
             }
         });
     });
