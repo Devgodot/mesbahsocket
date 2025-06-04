@@ -75,7 +75,7 @@ const sendOnlineUsersCount = async (ws, username) => {
         if (conversation) {
             wss.clients.forEach(client => {
                 const clientData = clients.get(client);
-                if (client.readyState === WebSocket.OPEN && (conversation.receiverId.includes(clientData.username) && clientData.username !== username)) {
+                if (client.readyState === WebSocket.OPEN && (conversation.receiverId.includes(clientData.id) && clientData.id !== username)) {
                     onlineSupporter[x].push(client);
                 }
             });
