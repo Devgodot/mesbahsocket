@@ -98,8 +98,8 @@ wss.on('connection', (ws) => {
 
             if (data.type === 'register') {
                 // Register the user
-                const { username, receiverId } = data;
-                clients.set(ws, { username, receiverId });
+                const { username} = data;
+                clients.set(ws, { username });
                 console.log(`User registered: ${username}`);
                 wss.clients.forEach(client => {
                     const clientData = clients.get(client);
@@ -109,13 +109,13 @@ wss.on('connection', (ws) => {
                 });
                 return;
             }
-            const { conversationId, senderId, receiverId, content, id } = data;
+            const { conversationId, senderId, content, id } = data;
 
             // Find the existing conversation or create a new one
-            let conversation = await Message.findOne({ where: { conversationId } });
-            if (!conversation) {
-                conversation = await Message.create({ conversationId, receiverId, messages: [] });
-            }
+            //let conversation = await Message.findOne({ where: { conversationId } });
+           // if (!conversation) {
+                //conversation = await Message.create({ conversationId, receiverId, messages: [] });
+           // }
 
             if (data.type === 'message') {
                 // Append the new message to the existing messages
