@@ -25,13 +25,21 @@ const Message = sequelize.define('Message', {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
     },
+    sender:{
+        type:DataTypes.STRING,
+        allowNull:false
+    },
     response: {
         type:DataTypes.STRING,
         allowNull:true
     },
     deleted: {
         type: DataTypes.DATE,
-        allowNull:true
+        allowNull:true,
+    },
+    part:{
+        type:DataTypes.STRING,
+        allowNull:false
     },
     seen:{
         type:DataTypes.DATE,
@@ -41,10 +49,12 @@ const Message = sequelize.define('Message', {
         type:DataTypes.BOOLEAN,
         defaultValue:false
     },
-    part:{
+    time:{
         type:DataTypes.STRING,
-        allowNull:false
+        allowNull:true
     }
+}, {
+    timestamps:false
 });
 
 module.exports = Message;

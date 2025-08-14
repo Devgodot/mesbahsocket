@@ -1,3 +1,17 @@
+const os = require('os');
+if (os.hostname() === 'mhh83') {
+    const { spawn } = require('child_process');
+    // Start SSH tunnel in detached mode
+    const sshTunnel = spawn('ssh', [
+        '-L', '3307:127.0.0.1:3306',
+        'pachim@45.138.135.82'
+    ], {
+        detached: true,
+        stdio: 'ignore'
+    });
+    sshTunnel.unref();
+}
+
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -6,6 +20,8 @@ const sequelize = require('./database');
 const Message = require('./models/message'); // Import the Message model
 const User = require('./models/user'); // Import the User model
 const MessagingService = require('./services/messagingService');
+const GameData = require('./models/GameData');
+const Conversation = require('./models/Conversation');
 const { setRoutes } = require('./routes/index');
 const moment = require('moment-timezone');
 const momentJalaali = require('moment-jalaali');
@@ -18,6 +34,7 @@ const dbConfig = config[env];
 
 
 const UserSeenMessages = require('./models/UserSeenMessages');
+const { time } = require('console');
 
 sequelize.models = {
     User,
@@ -66,165 +83,239 @@ app.get('/users', async (req, res) => {
 
 const clients = new Map();
 
-const sendOnlineUsersCount = async (ws, username) => {
-    let onlineSupporter = [[], [], []];
-    for (let x = 0; x < 3; x++) {
-        const conversationId = username + "_" + String(x);
-        
-        let conversation = await Message.findOne({ where: { conversationId }});
-        if (conversation) {
-            wss.clients.forEach(client => {
-                const clientData = clients.get(client);
-                if (client.readyState === WebSocket.OPEN && (conversation.receiverId.includes(clientData.id) && clientData.id !== username)) {
-                    onlineSupporter[x].push(client);
-                }
-            });
+const sendStateUsers = async (wss, username, state) => {
+    const gameData = await GameData.findOne({ where: { id: 1 } });
+    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];    
+    const conversations = await Conversation.findAll({
+        where: {
+            [Sequelize.Op.or]: [
+                { user1: username },
+                { user2: username }
+            ]
         }
-    }
-    let counts = [];
-    for(const client of onlineSupporter){
-        counts.push(client.length);
-    }
+    });
+    let users = [];
+    
+    for(const conversation of conversations) {
+        const { user1, user2 } = conversation;
+        if (username === user1){
+            conversation.state1 = state;
+            conversation.last_seen1 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').unix()};
+            users.push(user2);
 
-    ws.send(JSON.stringify({ type: 'onlineUsers', count: counts }));
+        }else{
+            conversation.state2 = state;
+            conversation.last_seen2 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').unix()};
+            users.push(user1);
+        }
+        await conversation.save();
+    }
+    wss.clients.forEach(client => {
+        const clientData = clients.get(client);
+        if (client.readyState === WebSocket.OPEN && (users.includes(clientData.username) || managements.includes(clientData.username))) {
+            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: momentJalaali().tz('Asia/Tehran').unix(), state:state, username:username}));
+        }
+    })
 };
 
 wss.on('connection', (ws) => {
     console.log('a user connected');
-
     ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
-
             if (data.type === 'register') {
                 // Register the user
                 const { username} = data;
                 clients.set(ws, { username });
                 console.log(`User registered: ${username}`);
-                wss.clients.forEach(client => {
-                    const clientData = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN) {
-                        sendOnlineUsersCount(client, clientData.id);
-                    }
-                });
+                sendStateUsers(wss, username, "online");
                 return;
             }
-            const { conversationId, senderId, content, id } = data;
 
-            // Find the existing conversation or create a new one
-            //let conversation = await Message.findOne({ where: { conversationId } });
-           // if (!conversation) {
-                //conversation = await Message.create({ conversationId, receiverId, messages: [] });
-           // }
-
+            const { conversationId, senderId, content} = data;
             if (data.type === 'message') {
                 // Append the new message to the existing messages
+                const {part, response, id} = data;
                 const newMessage = {
                     id: uuidv4(), // Generate a UUID for the new message
                     sender: senderId,
-                    text: content,
-                    timestamp: momentJalaali().tz('Asia/Tehran').format('jYYYY/jM/jD HH:mm:ss')
+                    messages: content,
+                    createdAt: momentJalaali().tz('Asia/Tehran').toDate(),
+                    updatedAt: momentJalaali().tz('Asia/Tehran').toDate(),
+                    response : response,
+                    conversationId:conversationId,
+                    part:part,
+                    time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm') + ' $' + momentJalaali().tz('Asia/Tehran').weekday()
                 };
-                
-                if (conversationId.match(senderId) !== null) {
-                    conversation.receiverId = receiverId;
+                const otherUser = senderId === conversationId.slice(0, 10) ? conversationId.slice(10, 20) : conversationId.slice(0, 10)
+                const conversation = await Conversation.findOne({ where: {[Sequelize.Op.or]:[{"user1":senderId},{"user2":senderId}], [Sequelize.Op.or]:[{"user1":otherUser},{"user2":otherUser}], part:part} });
+                if (!conversation) {
+                    const user1 = conversationId.slice(0, 10)
+                    const user2 = conversationId.slice(10, 20)
+                    const new_Conversation = await Conversation.create({user1:user1, user2:user2, part : part, conversationId:user1+user2});
+                    await new_Conversation.save();
+                    sendStateUsers(wss, senderId, "online");
+                    (async () => {
+                        const gameData = await GameData.findOne({ where: { id: 1 } });
+                        const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];
+                        // Notify all clients about the new conversation
+                        wss.clients.forEach(client => {
+                            const clientData = clients.get(client);
+                            console.log(clientData);
+                            if (client.readyState === WebSocket.OPEN && (clientData.username === otherUser || managements.includes(clientData.username))) {
+                                (async () => {
+                                    const sender = await User.findOne({ where: { id: senderId } });
+                                    if (sender) {
+                                        console.log(sender.id);
+                                        client.send(JSON.stringify({
+                                            type: 'new',
+                                            user: {
+                                                username: sender.id,
+                                                name: sender.data.first_name + ' ' + sender.data.last_name,
+                                                custom_name: sender.data.custom_name,
+                                                icon: sender.data.icon
+                                            },
+                                            part: part,
+                                            conversationId: new_Conversation.conversationId
+                                        }));
+                                    }
+                                })();
+                            }
+                            if (client.readyState === WebSocket.OPEN && (clientData.username === senderId)) {
+                                (async () => {
+                                    const sender = await User.findOne({ where: { id: otherUser } });
+                                    if (sender) {
+                                        console.log(sender.id);
+                                        client.send(JSON.stringify({ type: 'new', user: {
+                                                username: sender.id,
+                                                name: sender.data.first_name + ' ' + sender.data.last_name,
+                                                custom_name: sender.data.custom_name,
+                                                icon: sender.data.icon
+                                            },
+                                            part: part ,
+                                            conversationId: new_Conversation.conversationId}));
+                                    }
+                                })();
+                            }
+                        });
+                    })();
                 }
-                const updatedMessages = [...conversation.messages, newMessage];
-                
-                // Check if the number of messages exceeds 30
-                if (updatedMessages.length > 30) {
-                    const deletedMessageId = updatedMessages[0].id;
+                const _message = await Message.create(newMessage);
+                await _message.save();
+                // Broadcast the new message to specific clients
+                (async () => {
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];  
+                    const user1 = conversationId.slice(0, 10);
+                    const user2 = conversationId.slice(10, 20);
+                    let sender_name;
+                    const _user = await User.findOne({where : {id:senderId}});
+                    if(_user === null){
+                        sender_name = "کاربر حذف شده";
+                    }else{
+                        sender_name = _user.data.first_name + " " + _user.data.last_name;
+                    }
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
-                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.id)) {
-                            
-                            client.send(JSON.stringify({ message: deletedMessageId, type: "delete", "last_time_messages":newMessage.timestamp, "conversationId":conversationId }));
+                        if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
+                            newMessage["sender_name"] = clientData.username === senderId ? "شما" : sender_name;
+                            newMessage["updatedAt"] = momentJalaali().tz("Asia/Tehran").unix();
+                            newMessage["createdAt"] = momentJalaali().tz("Asia/Tehran").unix();
+                            client.send(JSON.stringify({ message: newMessage, id:id, type:"message"}));
                         }
                     });
-                    // Remove the first message
-                    updatedMessages.shift();
-                    
-                    // Delete the message from the database
-                    await sequelize.models.UserSeenMessages.destroy({
-                        where: {
-                            message_id: deletedMessageId
-                        }
-                    });
-                }
-                
-                conversation.messages = updatedMessages;
-                await conversation.save();
-
-                // Broadcast the new message to specific clients
-                wss.clients.forEach(client => {
-                    const clientData = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.id) || clientData.id === senderId)) {
-                        client.send(JSON.stringify({ message: newMessage, receiverId: receiverId, id: conversationId }));
-                    }
-                });
-            } 
-            else if (data.type === 'sound') {
-            
-                // Broadcast the new message to specific clients
-                wss.clients.forEach(client => {
-                    const clientData = clients.get(client);
-                    if (client.readyState === WebSocket.OPEN && (receiverId.includes(clientData.id) || clientData.id === senderId)) {
-                        client.send(JSON.stringify({sound: content, receiverId: receiverId }));
-                    }
-                });
+                })();
             } else if (data.type === 'delete') {
-                const { conversationId, senderId, receiverId, content, id } = data;
-                const transaction = await sequelize.transaction(); // Start a transaction
-                try {
-                    // Delete the message
-                    conversation.messages = conversation.messages.filter(msg => msg.id !== id);
-                    await conversation.save({ transaction });
-                    
-                    
-
-                    const allUsers = [...receiverId, senderId];
-                    // Remove the message ID from seen_message of each receiver
-                    for (const username of allUsers) {
-                        let user = await User.findOne({ where: { username } });
-                        if (user && user.data && user.data.seen_message) {
-                            user.data.seen_message = user.data.seen_message.filter(key => key !== id);
-                            // Update the user data
-                            await User.update({ data: user.data }, { where: { username }, transaction });
-                        }
-                    }
-                    await sequelize.models.UserSeenMessages.destroy({
-                        where: {
-                            message_id: id
-                        }
-                    });
-                    await transaction.commit(); // Commit the transaction
-                    // Broadcast the updated messages to specific clients
+                const {id, part} = data;
+                const _message = await Message.findOne({where : {conversationId, id}});
+                if (_message) {
+                    _message.deleted = momentJalaali().tz('Asia/Tehran').toDate();
+                    await _message.save();
+                }
+                (async () => {
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];
+                    // Notify all clients about the deletion
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
-                        if (client.readyState === WebSocket.OPEN && receiverId.includes(clientData.id)) {
-                            client.send(JSON.stringify({ message: id, type: "delete", "last_time_messages":conversation.messages[conversation.messages.length - 1].timestamp, "conversationId":conversationId  }));
+                        if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
+                            client.send(JSON.stringify({ message: id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').unix()})); // Send the deletion message
                         }
                     });
-                } catch (error) {
-                    await transaction.rollback(); // Rollback the transaction if any error occurs
-                    console.error('Error processing message deletion:', error);
+                })();
+            } else if (data.type === "edited"){
+                const {id} = data;
+                const _message = await Message.findOne({where : {conversationId, id}});
+                if (_message){
+                    _message.messages = content;
+                    _message.updatedAt = momentJalaali().tz('Asia/Tehran').toDate();
+                    _message.edited = true;
+                    await _message.save();
                 }
+                (async () => {
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];
+                    let sender_name;
+                    const _user = await User.findOne({where : {id:senderId}});
+                    if(_user === null){
+                        sender_name = "کاربر حذف شده";
+                    }else{
+                        sender_name = _user.data.first_name + " " + _user.data.last_name;
+                    }
+                    // Notify all clients about the edited message
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
+                            const editedMessage = _message.toJSON();
+                            editedMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
+                            editedMessage.updatedAt = momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix();
+                            editedMessage.createdAt = _message.createdAt ? momentJalaali(_message.createdAt).tz("Asia/Tehran").unix() : null;
+
+                            client.send(JSON.stringify({ message: editedMessage, type: "edited" }));
+                        }
+                    });
+                })();
+
+            }else if (data.type === "seen"){
+                (async () => {
+                    const {id} = data;
+                    const _message = await Message.findOne({where : {conversationId, id}});
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];
+                    if (_message){
+                        if (_message.sender !== senderId && !_message.seen && !_message.deleted && (!managements.includes(senderId) || conversationId.includes(senderId))) {
+                            _message.seen = momentJalaali().tz('Asia/Tehran').toDate();
+                            await _message.save();
+                        }
+                    }
+                    // Notify all clients about the seen message
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        const seenMessage = _message.toJSON();
+                        seenMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
+                        seenMessage.updatedAt = momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix();
+                        seenMessage.createdAt = _message.createdAt ? momentJalaali(_message.createdAt).tz("Asia/Tehran").unix() : null;
+                        seenMessage.seen = _message.seen ? momentJalaali(_message.seen).tz("Asia/Tehran").unix() : null;
+                        if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
+                            client.send(JSON.stringify({ message: seenMessage, type: "seen" }));
+                        }
+                    });
+                })();
             }
+      
         } catch (error) {
             console.error('Error processing message:', error);
         }
     });
 
-    ws.on('close', () => {
+    ws.on('close', async () => {
         console.log('user disconnected');
+        const clientData = clients.get(ws);
+        const username = clientData ? clientData.username : undefined;
         clients.delete(ws);
-        // Optionally, you can send the updated online users count to all clients
-        wss.clients.forEach(client => {
-            const clientData = clients.get(client);
-            if (client.readyState === WebSocket.OPEN) {
-                sendOnlineUsersCount(client, clientData.id);
-            }
-        });
+        if (username) {
+            sendStateUsers(wss, username, "offline");
+        }
     });
 
     // Send ping messages to keep the connection alive
@@ -240,3 +331,4 @@ wss.on('connection', (ws) => {
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
