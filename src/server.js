@@ -1,5 +1,9 @@
 const os = require('os');
-if (os.hostname() === 'mhh83') {
+const myHostname = 'mhh83'; // نام سیستم خودتان
+
+let dbPort = 3306;
+if (os.hostname() === myHostname) {
+    dbPort = 3307; // پورت تونل
     const { spawn } = require('child_process');
     // Start SSH tunnel in detached mode
     const sshTunnel = spawn('ssh', [
@@ -16,25 +20,33 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid'); // Import the uuid library
-const sequelize = require('./database');
+const { Sequelize } = require('sequelize');
+const config = require('../config/config.json');
+const moment = require('moment-timezone');
+const momentJalaali = require('moment-jalaali');
+
 const Message = require('./models/message'); // Import the Message model
 const User = require('./models/user'); // Import the User model
 const MessagingService = require('./services/messagingService');
 const GameData = require('./models/GameData');
 const Conversation = require('./models/Conversation');
 const { setRoutes } = require('./routes/index');
-const moment = require('moment-timezone');
-const momentJalaali = require('moment-jalaali');
-
-const { Sequelize } = require('sequelize');
-const config = require('../config/config.json');
+const UserSeenMessages = require('./models/UserSeenMessages');
+const { time } = require('console');
 
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
+// پورت دیتابیس را بر اساس محیط تنظیم کن
+dbConfig.port = dbPort;
 
-const UserSeenMessages = require('./models/UserSeenMessages');
-const { time } = require('console');
+// سپس sequelize را با dbConfig مقداردهی کن
+const sequelize = new Sequelize(
+    dbConfig.database,
+    dbConfig.username,
+    dbConfig.password,
+    dbConfig
+);
 
 sequelize.models = {
     User,
