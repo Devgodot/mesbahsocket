@@ -125,7 +125,7 @@ const sendStateUsers = async (wss, username, state) => {
     wss.clients.forEach(client => {
         const clientData = clients.get(client);
         if (client.readyState === WebSocket.OPEN && (users.includes(clientData.username) || managements.includes(clientData.username))) {
-            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: momentJalaali().tz('Asia/Tehran').unix(), state:state, username:username}));
+            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(momentJalaali().tz('Asia/Tehran').unix()), state:state, username:username}));
         }
     })
 };
@@ -231,14 +231,14 @@ wss.on('connection', (ws) => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
                             newMessage["sender_name"] = clientData.username === senderId ? "شما" : sender_name;
-                            newMessage["updatedAt"] = momentJalaali().tz("Asia/Tehran").unix();
-                            newMessage["createdAt"] = momentJalaali().tz("Asia/Tehran").unix();
+                            newMessage["updatedAt"] = String(momentJalaali().tz("Asia/Tehran").unix());
+                            newMessage["createdAt"] = String(momentJalaali().tz("Asia/Tehran").unix());
                             client.send(JSON.stringify({ message: newMessage, id:id, type:"message"}));
                         }
                     });
                 })();
             } else if (data.type === 'delete') {
-                const {id, part} = data;
+                const {id, part, pre_id} = data;
                 const _message = await Message.findOne({where : {conversationId, id}});
                 if (_message) {
                     _message.deleted = momentJalaali().tz('Asia/Tehran').toDate();
@@ -251,7 +251,7 @@ wss.on('connection', (ws) => {
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
-                            client.send(JSON.stringify({ message: id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').unix()})); // Send the deletion message
+                            client.send(JSON.stringify({ message: id, pre_message:pre_id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').unix()})); // Send the deletion message
                         }
                     });
                 })();
@@ -280,8 +280,8 @@ wss.on('connection', (ws) => {
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             const editedMessage = _message.toJSON();
                             editedMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
-                            editedMessage.updatedAt = momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix();
-                            editedMessage.createdAt = _message.createdAt ? momentJalaali(_message.createdAt).tz("Asia/Tehran").unix() : null;
+                            editedMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix());
+                            editedMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").unix()) : null;
 
                             client.send(JSON.stringify({ message: editedMessage, type: "edited" }));
                         }
@@ -305,9 +305,9 @@ wss.on('connection', (ws) => {
                         const clientData = clients.get(client);
                         const seenMessage = _message.toJSON();
                         seenMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
-                        seenMessage.updatedAt = momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix();
-                        seenMessage.createdAt = _message.createdAt ? momentJalaali(_message.createdAt).tz("Asia/Tehran").unix() : null;
-                        seenMessage.seen = _message.seen ? momentJalaali(_message.seen).tz("Asia/Tehran").unix() : null;
+                        seenMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix());
+                        seenMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").unix()) : null;
+                        seenMessage.seen = _message.seen ? String(momentJalaali(_message.seen).tz("Asia/Tehran").unix()) : null;
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             client.send(JSON.stringify({ message: seenMessage, type: "seen" }));
                         }
