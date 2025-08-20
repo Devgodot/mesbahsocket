@@ -152,8 +152,8 @@ wss.on('connection', (ws) => {
                     id: uuidv4(), // Generate a UUID for the new message
                     sender: senderId,
                     messages: content,
-                    createdAt: momentJalaali().tz('Asia/Tehran').toDate(),
-                    updatedAt: momentJalaali().tz('Asia/Tehran').toDate(),
+                    createdAt: momentJalaali().tz('Asia/Tehran').valueOf(),
+                    updatedAt: momentJalaali().tz('Asia/Tehran').valueOf(),
                     response : response,
                     conversationId:conversationId,
                     part:part,
@@ -241,7 +241,7 @@ wss.on('connection', (ws) => {
                 const {id, part, pre_id} = data;
                 const _message = await Message.findOne({where : {conversationId, id}});
                 if (_message) {
-                    _message.deleted = momentJalaali().tz('Asia/Tehran').toDate();
+                    _message.deleted = momentJalaali().tz('Asia/Tehran').valueOf();
                     await _message.save();
                 }
                 (async () => {
@@ -260,7 +260,7 @@ wss.on('connection', (ws) => {
                 const _message = await Message.findOne({where : {conversationId, id}});
                 if (_message){
                     _message.messages = content;
-                    _message.updatedAt = momentJalaali().tz('Asia/Tehran').toDate();
+                    _message.updatedAt = momentJalaali().tz('Asia/Tehran').valueOf();
                     _message.edited = true;
                     await _message.save();
                 }
@@ -295,7 +295,7 @@ wss.on('connection', (ws) => {
                     const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];
                     if (_message){
                         if (_message.sender !== senderId && !_message.seen && !_message.deleted && (!managements.includes(senderId) || conversationId.includes(senderId))) {
-                            _message.seen = momentJalaali().tz('Asia/Tehran').toDate();
+                            _message.seen = momentJalaali().tz('Asia/Tehran').valueOf();
                             await _message.save();
                         }
                     }
