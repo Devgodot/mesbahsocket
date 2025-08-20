@@ -112,12 +112,12 @@ const sendStateUsers = async (wss, username, state) => {
         const { user1, user2 } = conversation;
         if (username === user1){
             conversation.state1 = state;
-            conversation.last_seen1 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').unix()};
+            conversation.last_seen1 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').valueOf()};
             users.push(user2);
 
         }else{
             conversation.state2 = state;
-            conversation.last_seen2 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').unix()};
+            conversation.last_seen2 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').valueOf()};
             users.push(user1);
         }
         await conversation.save();
@@ -125,7 +125,7 @@ const sendStateUsers = async (wss, username, state) => {
     wss.clients.forEach(client => {
         const clientData = clients.get(client);
         if (client.readyState === WebSocket.OPEN && (users.includes(clientData.username) || managements.includes(clientData.username))) {
-            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(momentJalaali().tz('Asia/Tehran').unix()), state:state, username:username}));
+            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(momentJalaali().tz('Asia/Tehran').valueOf()), state:state, username:username}));
         }
     })
 };
@@ -231,8 +231,8 @@ wss.on('connection', (ws) => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
                             newMessage["sender_name"] = clientData.username === senderId ? "شما" : sender_name;
-                            newMessage["updatedAt"] = String(momentJalaali().tz("Asia/Tehran").unix());
-                            newMessage["createdAt"] = String(momentJalaali().tz("Asia/Tehran").unix());
+                            newMessage["updatedAt"] = String(momentJalaali().tz("Asia/Tehran").valueOf());
+                            newMessage["createdAt"] = String(momentJalaali().tz("Asia/Tehran").valueOf());
                             client.send(JSON.stringify({ message: newMessage, id:id, type:"message"}));
                         }
                     });
@@ -251,7 +251,7 @@ wss.on('connection', (ws) => {
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
-                            client.send(JSON.stringify({ message: id, pre_message:pre_id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').unix()})); // Send the deletion message
+                            client.send(JSON.stringify({ message: id, pre_message:pre_id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').valueOf()})); // Send the deletion message
                         }
                     });
                 })();
@@ -280,9 +280,8 @@ wss.on('connection', (ws) => {
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             const editedMessage = _message.toJSON();
                             editedMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
-                            editedMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix());
-                            editedMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").unix()) : null;
-
+                            editedMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").valueOf());
+                            editedMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").valueOf()) : null;
                             client.send(JSON.stringify({ message: editedMessage, type: "edited" }));
                         }
                     });
@@ -305,9 +304,9 @@ wss.on('connection', (ws) => {
                         const clientData = clients.get(client);
                         const seenMessage = _message.toJSON();
                         seenMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
-                        seenMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").unix());
-                        seenMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").unix()) : null;
-                        seenMessage.seen = _message.seen ? String(momentJalaali(_message.seen).tz("Asia/Tehran").unix()) : null;
+                        seenMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").valueOf());
+                        seenMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").valueOf()) : null;
+                        seenMessage.seen = _message.seen ? String(momentJalaali(_message.seen).tz("Asia/Tehran").valueOf()) : null;
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             client.send(JSON.stringify({ message: seenMessage, type: "seen" }));
                         }
