@@ -112,12 +112,12 @@ const sendStateUsers = async (wss, username, state) => {
         const { user1, user2 } = conversation;
         if (username === user1){
             conversation.state1 = state;
-            conversation.last_seen1 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').valueOf()};
+            conversation.last_seen1 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": String(momentJalaali().tz('Asia/Tehran').valueOf())};
             users.push(user2);
 
         }else{
             conversation.state2 = state;
-            conversation.last_seen2 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": momentJalaali().tz('Asia/Tehran').valueOf()};
+            conversation.last_seen2 = {"time": momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), "timestamp": String(momentJalaali().tz('Asia/Tehran').valueOf())};
             users.push(user1);
         }
         await conversation.save();
@@ -125,7 +125,7 @@ const sendStateUsers = async (wss, username, state) => {
     wss.clients.forEach(client => {
         const clientData = clients.get(client);
         if (client.readyState === WebSocket.OPEN && (users.includes(clientData.username) || managements.includes(clientData.username))) {
-            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(momentJalaali().tz('Asia/Tehran').valueOf()), state:state, username:username}));
+            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(String(momentJalaali().tz('Asia/Tehran').valueOf())), state:state, username:username}));
         }
     })
 };
@@ -152,8 +152,8 @@ wss.on('connection', (ws) => {
                     id: uuidv4(), // Generate a UUID for the new message
                     sender: senderId,
                     messages: content,
-                    createdAt: momentJalaali().tz('Asia/Tehran').valueOf(),
-                    updatedAt: momentJalaali().tz('Asia/Tehran').valueOf(),
+                    createdAt: String(momentJalaali().tz('Asia/Tehran').valueOf()),
+                    updatedAt: String(momentJalaali().tz('Asia/Tehran').valueOf()),
                     response : response,
                     conversationId:conversationId,
                     part:part,
@@ -241,7 +241,7 @@ wss.on('connection', (ws) => {
                 const {id, part, pre_id} = data;
                 const _message = await Message.findOne({where : {conversationId, id}});
                 if (_message) {
-                    _message.deleted = momentJalaali().tz('Asia/Tehran').valueOf();
+                    _message.deleted = String(momentJalaali().tz('Asia/Tehran').valueOf());
                     await _message.save();
                 }
                 (async () => {
@@ -251,7 +251,7 @@ wss.on('connection', (ws) => {
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
-                            client.send(JSON.stringify({ message: id, pre_message:pre_id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').valueOf()})); // Send the deletion message
+                            client.send(JSON.stringify({ message: id, pre_message:pre_id, part:part, type: "delete", "conversationId":conversationId, time:String(momentJalaali().tz('Asia/Tehran').valueOf())})); // Send the deletion message
                         }
                     });
                 })();
@@ -260,7 +260,7 @@ wss.on('connection', (ws) => {
                 const _message = await Message.findOne({where : {conversationId, id}});
                 if (_message){
                     _message.messages = content;
-                    _message.updatedAt = momentJalaali().tz('Asia/Tehran').valueOf();
+                    _message.updatedAt = String(momentJalaali().tz('Asia/Tehran').valueOf());
                     _message.edited = true;
                     await _message.save();
                 }
@@ -295,7 +295,7 @@ wss.on('connection', (ws) => {
                     const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];
                     if (_message){
                         if (_message.sender !== senderId && !_message.seen && !_message.deleted && (!managements.includes(senderId) || conversationId.includes(senderId))) {
-                            _message.seen = momentJalaali().tz('Asia/Tehran').valueOf();
+                            _message.seen = String(momentJalaali().tz('Asia/Tehran').valueOf());
                             await _message.save();
                         }
                     }

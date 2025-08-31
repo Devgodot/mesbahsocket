@@ -18,11 +18,11 @@ const Message = sequelize.define('Message', {
         defaultValue: []
     },
     createdAt: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.STRING,
         defaultValue: DataTypes.NOW
     },
     updatedAt: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.STRING,
         defaultValue: DataTypes.NOW
     },
     sender:{
@@ -34,7 +34,7 @@ const Message = sequelize.define('Message', {
         allowNull:true
     },
     deleted: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.STRING,
         allowNull:true,
     },
     part:{
@@ -42,7 +42,7 @@ const Message = sequelize.define('Message', {
         allowNull:false
     },
     seen:{
-        type:DataTypes.FLOAT,
+        type:DataTypes.STRING,
         allowNull:true
     },
     edited:{
