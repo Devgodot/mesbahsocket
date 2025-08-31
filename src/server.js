@@ -303,7 +303,6 @@ wss.on('connection', (ws) => {
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         const seenMessage = _message.toJSON();
-                        seenMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
                         seenMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").valueOf());
                         seenMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").valueOf()) : null;
                         seenMessage.seen = _message.seen ? String(momentJalaali(_message.seen).tz("Asia/Tehran").valueOf()) : null;
