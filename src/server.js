@@ -280,8 +280,8 @@ wss.on('connection', (ws) => {
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             const editedMessage = _message.toJSON();
                             editedMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
-                            editedMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").valueOf());
-                            editedMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").valueOf()) : null;
+                            editedMessage.updatedAt = String(momentJalaali().tz('Asia/Tehran').valueOf());
+                            editedMessage.createdAt = _message.createdAt ? _message.createdAt : "0";
                             client.send(JSON.stringify({ message: editedMessage, type: "edited" }));
                         }
                     });
