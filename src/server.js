@@ -231,8 +231,6 @@ wss.on('connection', (ws) => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
                             newMessage["sender_name"] = clientData.username === senderId ? "شما" : sender_name;
-                            newMessage["updatedAt"] = String(momentJalaali().tz("Asia/Tehran").valueOf());
-                            newMessage["createdAt"] = String(momentJalaali().tz("Asia/Tehran").valueOf());
                             client.send(JSON.stringify({ message: newMessage, id:id, type:"message"}));
                         }
                     });
@@ -280,8 +278,6 @@ wss.on('connection', (ws) => {
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             const editedMessage = _message.toJSON();
                             editedMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
-                            editedMessage.updatedAt = String(momentJalaali().tz('Asia/Tehran').valueOf());
-                            editedMessage.createdAt = _message.createdAt ? _message.createdAt : "0";
                             client.send(JSON.stringify({ message: editedMessage, type: "edited" }));
                         }
                     });
@@ -303,9 +299,6 @@ wss.on('connection', (ws) => {
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         const seenMessage = _message.toJSON();
-                        seenMessage.updatedAt = String(momentJalaali(_message.updatedAt).tz("Asia/Tehran").valueOf());
-                        seenMessage.createdAt = _message.createdAt ? String(momentJalaali(_message.createdAt).tz("Asia/Tehran").valueOf()) : null;
-                        seenMessage.seen = _message.seen ? String(momentJalaali(_message.seen).tz("Asia/Tehran").valueOf()) : null;
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             client.send(JSON.stringify({ message: seenMessage, type: "seen" }));
                         }
