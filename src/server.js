@@ -1,7 +1,7 @@
 const os = require('os');
 const myHostname = 'mhh83'; // نام سیستم خودتان
 
-let dbPort = 3306;
+let dbPort = 3307;
 if (os.hostname() === myHostname) {
     dbPort = 3307; // پورت تونل
     const { spawn } = require('child_process');
@@ -127,7 +127,7 @@ const sendStateUsers = async (wss, username, state) => {
         console.log(clientData);
         if (client.readyState === WebSocket.OPEN && clientData.hasOwnProperty("username") && (users.includes(clientData.username) || managements.includes(clientData.username))) {
             (async () => {
-                const sender = await User.findOne({ where: { id: senderId } });
+                const sender = await User.findOne({ where: { id: username } });
                 if (sender) {
                     client.send(JSON.stringify({
                         user: {
