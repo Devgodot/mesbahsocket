@@ -1,7 +1,7 @@
 const os = require('os');
 const myHostname = 'mhh83'; // نام سیستم خودتان
 
-let dbPort = 3307;
+let dbPort = 3306;
 if (os.hostname() === myHostname) {
     dbPort = 3307; // پورت تونل
     const { spawn } = require('child_process');
@@ -126,9 +126,21 @@ const sendStateUsers = async (wss, username, state) => {
         const clientData = clients.get(client);
         console.log(clientData);
         if (client.readyState === WebSocket.OPEN && clientData.hasOwnProperty("username") && (users.includes(clientData.username) || managements.includes(clientData.username))) {
-            client.send(JSON.stringify({type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(momentJalaali().tz('Asia/Tehran').valueOf()), state:state, username:username}));
+            (async () => {
+                const sender = await User.findOne({ where: { id: senderId } });
+                if (sender) {
+                    client.send(JSON.stringify({
+                        user: {
+                            name: sender.data.first_name + ' ' + sender.data.last_name,
+                            custom_name: sender.data.custom_name,
+                            icon: sender.data.icon
+                        },
+                        type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(momentJalaali().tz('Asia/Tehran').valueOf()), state:state, username:username
+                    }));
+                }
+            })();
         }
-    })
+    });
 };
 
 wss.on('connection', (ws) => {
@@ -174,7 +186,6 @@ wss.on('connection', (ws) => {
                         // Notify all clients about the new conversation
                         wss.clients.forEach(client => {
                             const clientData = clients.get(client);
-                            console.log(clientData);
                             if (client.readyState === WebSocket.OPEN && (clientData.username === otherUser || managements.includes(clientData.username))) {
                                 (async () => {
                                     const sender = await User.findOne({ where: { id: senderId } });
