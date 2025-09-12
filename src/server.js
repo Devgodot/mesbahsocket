@@ -1,7 +1,7 @@
 const os = require('os');
 const myHostname = 'mhh83'; // نام سیستم خودتان
 
-let dbPort = 3307;
+let dbPort = 3306;
 if (os.hostname() === myHostname) {
     dbPort = 3307; // پورت تونل
     const { spawn } = require('child_process');
@@ -173,6 +173,9 @@ wss.on('connection', (ws) => {
                     time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm') + ' $' + momentJalaali().tz('Asia/Tehran').weekday()
                 };
                 const otherUser = senderId === conversationId.slice(0, 10) ? conversationId.slice(10, 20) : conversationId.slice(0, 10)
+                if (!part || part === "") {
+                    return;
+                }
                 const conversation = await Conversation.findOne({ where: {[Sequelize.Op.or]:[{"user1":senderId},{"user2":senderId}], [Sequelize.Op.or]:[{"user1":otherUser},{"user2":otherUser}], part:part} });
                 if (!conversation) {
                     const user1 = conversationId.slice(0, 10)
