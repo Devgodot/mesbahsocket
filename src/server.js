@@ -176,10 +176,12 @@ wss.on('connection', (ws) => {
                 if (!part || part === "") {
                     return;
                 }
-                const conversation = await Conversation.findOne({ where: {[Sequelize.Op.or]:[{"user1":senderId},{"user2":senderId}], [Sequelize.Op.or]:[{"user1":otherUser},{"user2":otherUser}], part:part} });
+                const conversation = await Conversation.findOne({where: {[Sequelize.Op.or]: [{ user1: senderId, user2: otherUser }, { user1: otherUser, user2: senderId }], part: part}});
+                console.log(conversation)
                 if (!conversation) {
                     const user1 = conversationId.slice(0, 10)
                     const user2 = conversationId.slice(10, 20)
+
                     const new_Conversation = await Conversation.create({user1:user1, user2:user2, part : part, conversationId:user1+user2});
                     await new_Conversation.save();
                     sendStateUsers(wss, senderId, "online");
@@ -276,6 +278,7 @@ wss.on('connection', (ws) => {
                     _message.updatedAt = momentJalaali().tz('Asia/Tehran').valueOf();
                     _message.edited = true;
                     await _message.save();
+
                 }
                 (async () => {
                     const gameData = await GameData.findOne({ where: { id: 1 } });
@@ -303,6 +306,13 @@ wss.on('connection', (ws) => {
                     const {id} = data;
                     const _message = await Message.findOne({where : {conversationId, id}});
                     const gameData = await GameData.findOne({ where: { id: 1 } });
+                    let sender_name;
+                    const _user = await User.findOne({where : {id:_message.sender}});
+                    if(_user === null){
+                        sender_name = "کاربر حذف شده";
+                    }else{
+                        sender_name = _user.data.first_name + " " + _user.data.last_name;
+                    }
                     const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];
                     if (_message){
                         if (_message.sender !== senderId && !_message.seen && !_message.deleted && (!managements.includes(senderId) || conversationId.includes(senderId))) {
@@ -310,10 +320,12 @@ wss.on('connection', (ws) => {
                             await _message.save();
                         }
                     }
+
                     // Notify all clients about the seen message
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         const seenMessage = _message.toJSON();
+                        seenMessage.sender_name = sender_name;
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             client.send(JSON.stringify({ message: seenMessage, type: "seen" }));
                         }
