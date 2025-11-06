@@ -158,6 +158,40 @@ wss.on('connection', (ws) => {
             }
 
             const { conversationId, senderId, content} = data;
+            if (data.type === 'file') {
+                const {part} = data;
+                const newMessage = {
+                    id: uuidv4(), // Generate a UUID for the new message
+                    sender: senderId,
+                    messages: content,
+                    createdAt: momentJalaali().tz('Asia/Tehran').valueOf(),
+                    updatedAt: momentJalaali().tz('Asia/Tehran').valueOf(),
+                    response : response,
+                    conversationId:conversationId,
+                    part:part,
+                    time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm') + ' $' + momentJalaali().tz('Asia/Tehran').weekday()
+                };
+                (async () => {
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];  
+                    const user1 = conversationId.slice(0, 10);
+                    const user2 = conversationId.slice(10, 20);
+                    let sender_name;
+                    const _user = await User.findOne({where : {id:senderId}});
+                    if(_user === null){
+                        sender_name = "کاربر حذف شده";
+                    }else{
+                        sender_name = _user.data.first_name + " " + _user.data.last_name;
+                    }
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
+                            newMessage["sender_name"] = clientData.username === senderId ? "شما" : sender_name;
+                            client.send(JSON.stringify({ message: newMessage, type:"file"}));
+                        }
+                    });
+                })();
+            }
             if (data.type === 'message') {
                 // Append the new message to the existing messages
                 const {part, response, id} = data;
