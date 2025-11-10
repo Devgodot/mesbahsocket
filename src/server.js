@@ -94,6 +94,21 @@ app.get('/users', async (req, res) => {
 });
 
 const clients = new Map();
+const images = new Map();
+const vscodeIcons = require('vscode-icons-js');
+const getIcon = vscodeIcons.getIconForFile;
+const path = require('path');
+function getFileIconUrl(filename) {
+    const ext = path.extname(filename).slice(1).toLowerCase(); // مثال: "jpg"
+    let iconName = getIcon(filename).split("_").pop();
+    if (!iconName) {
+        // اگر پیدا نکرد، از آیکون پیش‌فرض استفاده کن
+        return "https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/folder.svg";
+    }
+
+    // آدرس CDN رسمی vscode-icons
+    return `https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/${iconName}`;
+}
 
 const sendStateUsers = async (wss, username, state) => {
     const gameData = await GameData.findOne({ where: { id: 1 } });
@@ -136,7 +151,7 @@ const sendStateUsers = async (wss, username, state) => {
                             icon: sender.data.icon
                         },
                         type:"status",time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm'), timestamp: String(momentJalaali().tz('Asia/Tehran').valueOf()), state:state, username:username
-                    }));
+                    }), { binary: false });
                 }
             })();
         }
@@ -145,8 +160,45 @@ const sendStateUsers = async (wss, username, state) => {
 
 wss.on('connection', (ws) => {
     console.log('a user connected');
-    ws.on('message', async (message) => {
+    ws.on('message', async (message, isBinary) => {
         try {
+            if(isBinary){
+                if (!images.has(ws)) {
+                    images.set(ws, []);
+                }
+                let dic = images.get(ws);
+                if(!dic[0]){return;}
+                
+                const byte = message;
+                byte.forEach(d=> {
+                    dic[0]["data"].push(d);
+                }
+                )
+                console.log(dic[0], dic[0].data.length, message.length);
+                const {conversationId, senderId} = dic[0];
+                
+                const data = dic[0];
+                (async () => {
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];  
+                    const user1 = conversationId.slice(0, 10);
+                    const user2 = conversationId.slice(10, 20);
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        console.log(clientData);
+                        if (!clientData){return}
+                        if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
+                            client.send(JSON.stringify({file:data.file, size:data.size, type:"data", file_type:getIcon(data.file).replace("file_type_", "").replace(".svg", "")}), { binary: false })
+                            client.send(byte, { binary: true });
+                        }
+                    });
+                })();
+                if (dic[0]["data"].length === dic[0]["size"]){
+                    dic.shift()
+                }
+                images.set(ws, dic);
+                return;
+            }
             const data = JSON.parse(message);
             if (data.type === 'register') {
                 // Register the user
@@ -156,17 +208,89 @@ wss.on('connection', (ws) => {
                 sendStateUsers(wss, username, "online");
                 return;
             }
-
-            const { conversationId, senderId, content} = data;
+            if (data.type === "download"){
+                let dic = images.get(ws);
+                if(!dic[data.file]){return;}
+                const {conversationId} = dic[data.file];
+                (async () => {
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];  
+                    const user1 = conversationId.slice(0, 10);
+                    const user2 = conversationId.slice(10, 20);
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        if (!clientData){return}
+                        if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
+                            client.send(JSON.stringify({url:data.url, type:"download", file:data.file, file_type:getIcon(data.file).replace("file_type_", "").replace(".svg", "")}), { binary: false });
+                        }
+                    });
+                })();
+            }
+            if (data.type === "data"){
+                let dic = images.get(ws);
+                if(!dic[data.file]){return;}
+                
+                const byte = JSON.parse(data.data);
+                console.log(data);
+                byte.forEach(d=> {
+                    dic[data.file]["data"].push(d);
+                }
+                )
+                
+                const {conversationId} = dic[data.file];
+                console.log(data.index);
+                const size = dic[data.file]["size"];
+                (async () => {
+                    const gameData = await GameData.findOne({ where: { id: 1 } });
+                    const managements = gameData && gameData.data ? (gameData.data["management"] || []) : [];  
+                    const user1 = conversationId.slice(0, 10);
+                    const user2 = conversationId.slice(10, 20);
+                    wss.clients.forEach(client => {
+                        const clientData = clients.get(client);
+                        if (!clientData){return}
+                        if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
+                            client.send(JSON.stringify({file:data.file, size, type:"data", file_type:getIcon(data.file).replace("file_type_", "").replace(".svg", ""), index:data.index}), { binary: false });
+                            client.send(byte, { binary: true });
+                        }
+                    });
+                })();
+                if (dic[data.file]["data"].length === dic[data.file]["size"]){
+                    delete dic[data.file]
+                    
+                }
+                images.set(ws, dic);
+                return;
+            }
+            let { conversationId, senderId, content} = data;
             if (data.type === 'file') {
-                const {part} = data;
+                const {part, size} = data;
+                if (!images.has(ws)) {
+                    images.set(ws, {});
+                }
+                let dic = images.get(ws);
+                let ext = "";
+                
+                const file_name = content["file"];
+                let i = 0;
+                file_name.split(".").forEach(p=>{
+                    if(i !== 0){
+                    ext += "."+p;
+                    }
+                    i += 1;
+                })
+                content["type"] = getIcon(file_name).replace("file_type_", "").replace(".svg", "");
+                content["icon"] = getFileIconUrl(file_name);
+                //content["file"] = momentJalaali().tz("Asia/Tehran").format("jYYYY/jMM/jDD_HH:mm:ss:SSS") + ext;
+
+                dic[file_name]={data:[], senderId, conversationId, size};
+                images.set(ws, dic);
                 const newMessage = {
                     id: uuidv4(), // Generate a UUID for the new message
                     sender: senderId,
                     messages: content,
+                    seen:String(momentJalaali().tz('Asia/Tehran').valueOf()),
                     createdAt: momentJalaali().tz('Asia/Tehran').valueOf(),
                     updatedAt: momentJalaali().tz('Asia/Tehran').valueOf(),
-                    response : response,
                     conversationId:conversationId,
                     part:part,
                     time: momentJalaali().tz('Asia/Tehran').format('jYYYY/jMM/jDD  HH:mm') + ' $' + momentJalaali().tz('Asia/Tehran').weekday()
@@ -185,9 +309,11 @@ wss.on('connection', (ws) => {
                     }
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
+                        if (!clientData) return;
+                        console.log("1");
                         if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
                             newMessage["sender_name"] = clientData.username === senderId ? "شما" : sender_name;
-                            client.send(JSON.stringify({ message: newMessage, type:"file"}));
+                            client.send(JSON.stringify({ message: newMessage, type:"file", file:file_name, size}), { binary: false });
                         }
                     });
                 })();
@@ -240,7 +366,7 @@ wss.on('connection', (ws) => {
                                             },
                                             part: part,
                                             conversationId: new_Conversation.conversationId
-                                        }));
+                                        }), { binary: false });
                                     }
                                 })();
                             }
@@ -256,7 +382,7 @@ wss.on('connection', (ws) => {
                                                 icon: sender.data.icon
                                             },
                                             part: part ,
-                                            conversationId: new_Conversation.conversationId}));
+                                            conversationId: new_Conversation.conversationId}), { binary: false });
                                     }
                                 })();
                             }
@@ -282,7 +408,7 @@ wss.on('connection', (ws) => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (clientData.username === user1 || clientData.username === user2 || managements.includes(clientData.username))) {
                             newMessage["sender_name"] = clientData.username === senderId ? "شما" : sender_name;
-                            client.send(JSON.stringify({ message: newMessage, id:id, type:"message"}));
+                            client.send(JSON.stringify({ message: newMessage, id:id, type:"message"}), { binary: false });
                         }
                     });
                 })();
@@ -300,7 +426,7 @@ wss.on('connection', (ws) => {
                     wss.clients.forEach(client => {
                         const clientData = clients.get(client);
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
-                            client.send(JSON.stringify({ message: id, pre_message:pre_id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').valueOf()})); // Send the deletion message
+                            client.send(JSON.stringify({ message: id, pre_message:pre_id, part:part, type: "delete", "conversationId":conversationId, time:momentJalaali().tz('Asia/Tehran').valueOf()}), { binary: false }); // Send the deletion message
                         }
                     });
                 })();
@@ -330,7 +456,7 @@ wss.on('connection', (ws) => {
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
                             const editedMessage = _message.toJSON();
                             editedMessage.sender_name = clientData.username === senderId ? "شما" : sender_name;
-                            client.send(JSON.stringify({ message: editedMessage, type: "edited" }));
+                            client.send(JSON.stringify({ message: editedMessage, type: "edited" }), { binary: false });
                         }
                     });
                 })();
@@ -361,7 +487,7 @@ wss.on('connection', (ws) => {
                         const seenMessage = _message.toJSON();
                         seenMessage.sender_name = sender_name;
                         if (client.readyState === WebSocket.OPEN && (managements.includes(clientData.username) || conversationId.includes(clientData.username))) {
-                            client.send(JSON.stringify({ message: seenMessage, type: "seen" }));
+                            client.send(JSON.stringify({ message: seenMessage, type: "seen" }), { binary: false });
                         }
                     });
                 })();

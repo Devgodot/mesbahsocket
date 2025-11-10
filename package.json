@@ -14,9 +14,11 @@
     "moment-timezone": "^0.5.47",
     "mongoose": "^5.13.23",
     "mysql2": "^3.13.0",
+    "path": "^0.12.7",
     "sequelize": "^6.37.6",
     "socket.io": "^4.8.1",
     "tunnel-ssh": "^5.2.0",
+    "vscode-icons-js": "^11.6.1",
     "ws": "^8.18.1"
   },
   "devDependencies": {
